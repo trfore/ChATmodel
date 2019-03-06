@@ -164,17 +164,40 @@ GrC_GoC.connect(p=float(conv_GrC_GoC/nGoC))
 # Monitor GrC output
 spikes = SpikeMonitor(GrC)
 state  = StateMonitor(GrC, 'v', record = GrC_M[active_indices[0],:])
+# Monitor for GoC output
+spikes_GoC = SpikeMonitor(GoC)
+
 
 runtime = 30
 run(runtime * ms)
 
-subplot(121);
-plot(state.t/ms, np.transpose(state.v)/mV)
+#subplot(121);
+#plot(state.t/ms, np.transpose(state.v)/mV)
+#
+#
+#subplot(122);
+#plot(spikes.t/ms,spikes.i,'.k')
+#xlim(0,runtime); ylim(0,nGrC)
+#xlabel('Time (ms)'); ylabel('GrC index')
 
+#show()
 
-subplot(122);
-plot(spikes.t/ms,spikes.i,'.k')
-xlim(0,runtime); ylim(0,nGrC)
-xlabel('Time (ms)'); ylabel('GrC index')
+fig, ax = plt.subplots(2, 2, figsize=(9, 9))
+ax[0,0].plot(state.t/ms, np.transpose(state.v)/mV)
+ax[0,0].set_title('GrC Vm (population)')
+ax[0,0].set_xlabel('time (ms)')
+ax[0,1].set_ylabel('Vm (mV)')
 
-show()
+ax[0,1].plot(spikes.t/ms,spikes.i,'.k')
+ax[0,1].set_xlim(0,runtime)
+ax[0,1].set_ylim(0,nGrC)
+ax[0,1].set_title('GrC population activity')
+ax[0,1].set_xlabel('time (ms)')
+ax[0,1].set_ylabel('GrC index')
+
+ax[1,1].plot(spikes.t/ms,spikes_GoC.i,'.k')
+ax[1,1].set_xlim(0,runtime)
+ax[1,1].set_ylim(0,nGoC)
+ax[1,1].set_title('GoC population activity')
+ax[1,1].set_xlabel('time (ms)')
+ax[1,1].set_ylabel('GoC index')
