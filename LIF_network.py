@@ -20,7 +20,9 @@ conv_GoC_GrC = 100          # GrC -> GoC synapses
 conv_GrC_GoC =   4          # Goc -> GrC synapses
 
 # Leak conductance
-g_l_GrC   = 0.8   * nS
+g_l_GrC   = 0.4   * nS
+g_t_GrC   = 0.4   * nS
+
 g_l_GoC   = 3.    * nS
 
 # Reversal potential (leak, excitatory, inhibitory)
@@ -28,16 +30,16 @@ E_l_GrC   = -75   * mV
 E_e_GrC   =   0   * mV
 E_i_GrC   = -75   * mV
 
-E_l_GoC   = -60   * mV
-E_e_GoC   = -30   * mV
-E_i_GoC   = -60   * mV
+E_l_GoC   = -49.99   * mV
+E_e_GoC   =   0   * mV
+E_i_GoC   = -75   * mV
 
 # Membrane capacitance
 C_m_GrC   =  3.1  * pF
 C_m_GoC   = 60.   * pF
 
 # TODO Use rise and decay times and add dyanmics to neuron Equations
-tau_e_decay_GrC = 2.9 * ms
+tau_e_decay_GrC = 8.0 * ms
 tau_e_decay_GoC = 1.6 * ms
 
 tau_i_decay_GrC = 8.0 * ms
@@ -47,35 +49,41 @@ tau_r = 2 * ms
 
 # Spiking threshold
 V_th_GrC   = -55 * mV
-V_th_GoC   = -45 * mV
+V_th_GoC   = -50 * mV
 
 # Resting potential
 V_r_GrC    = -75 * mV
-V_r_GoC    = -60 * mV
+V_r_GoC    = -55 * mV
 
-# TODO: initialize synaptic weights as distribution to pull from
-w_e = 0.34 * nS
-w_i = 0.23 * nS
+# Golgi cell reset potential
+V_reset_GoC = -65 * mV
 
-# Golgi cell tonic / stochastic current
-g_t_GoC = 0.1  * nS
-sigma_n = 0.12 * nS
+# Synaptic weights
+w_e_GrC = 0.22 * nS
+w_i_GrC = 0.23 * nS
+
+w_e_GoC = 0.3  * nS
+
+# Golgi cell stochastic fluctuating excitatory current
+sigma_n = 0.005 * nS
 tau_n   = 1000 * ms
+
 #############
 # Equations #
 #############
 
 GrC_eqs = '''
-dv/dt   = (g_l*(E_l-v) + g_e*(E_e-v) + g_i*(E_i-v))/C_m : volt (unless refractory)
+dv/dt   = (g_l*(E_l-v) + g_e*(E_e-v) + (g_i+g_t)*(E_i-v))/C_m : volt (unless refractory)
 dg_e/dt = -g_e/tau_e : siemens
 dg_i/dt = -g_i/tau_i : siemens
 '''
 
 GoC_eqs = '''
-dv/dt   = ((g_l+g_t)*(E_l-v) + (g_e+g_n)*(E_e-v))/C_m : volt (unless refractory)
+dv/dt   = (g_l*(E_l-v) + (g_e+g_n)*(E_e-v))/C_m : volt (unless refractory)
 dg_e/dt = -g_e/tau_e : siemens
 dg_n/dt = (-g_n + sigma_n * sqrt(tau_n) * xi)/tau_n : siemens
 '''
+
 #####################
 # Mossy fiber input #
 #####################
@@ -83,7 +91,7 @@ dg_n/dt = (-g_n + sigma_n * sqrt(tau_n) * xi)/tau_n : siemens
 stim_times = [0, 10, 20]            # Mossy fiber stimulation times
 nstim      = len(stim_times)
 mf_indices = np.arange(nmf)
-n_active   = round(nmf/15)           # Fraction of mfs active at each stimulation
+n_active   = round(nmf/20)           # Fraction of mfs active at each stimulation
 
 # Randomly select a subset of mossy fibers to spike at each stimulation
 # If you want a different subset of mossy fibers at each stimulation, move
@@ -105,6 +113,7 @@ mf_input = SpikeGeneratorGroup(nmf, indices, times)
 GrC = NeuronGroup(nGrC,
                   Equations(GrC_eqs,
                             g_l   = g_l_GrC,
+                            g_t   = g_t_GrC,
                             E_l   = E_l_GrC,
                             E_e   = E_e_GrC,
                             E_i   = E_i_GrC,
@@ -120,14 +129,13 @@ GrC.v   = V_r_GrC
 GoC = NeuronGroup(nGoC,
                   Equations(GoC_eqs,
                             g_l = g_l_GoC,
-                            g_t = g_t_GoC,
                             E_l = E_l_GoC,
                             E_e = E_e_GoC,
                             E_i = E_i_GoC,
                             C_m = C_m_GoC,
                             tau_e = tau_e_decay_GoC),
                   threshold  = 'v > V_th_GoC',
-                  reset      = 'v = V_r_GoC',
+                  reset      = 'v = V_reset_GoC',
                   refractory = 'tau_r',
                   method     = 'euler')
 GoC.v = V_r_GoC
@@ -138,43 +146,80 @@ GoC.v = V_r_GoC
 
 # Mossy fiber onto GrCs
 GrC_M = Synapses(mf_input,GrC,
-                 on_pre = 'g_e += w_e')
-GrC_M.connect(p=float(conv_GrC_M/nmf))
+                 on_pre = 'g_e += w_e_GrC')
+GrC_M.connect(p = conv_GrC_M/nmf)
 
 # Mossy fiber onto GoCs
 GoC_M = Synapses(mf_input,GoC,
-                 on_pre = 'g_e += w_e')
-GoC_M.connect(p=float(conv_GoC_M/nmf))
+                 on_pre = 'g_e += w_e_GoC')
+GoC_M.connect(p = conv_GoC_M/nmf)
 
 # GrC onto GoCs
 GoC_GrC = Synapses(GrC,GoC,
-                   on_pre = 'g_e += w_e')
-GoC_GrC.connect(p=float(conv_GoC_GrC/nGrC))
+                   on_pre = 'g_e += w_e_GoC')
+GoC_GrC.connect(p = conv_GoC_GrC/nGrC)
 
 # GoC onto GrC (inhibitory)
 GrC_GoC = Synapses(GoC,GrC,
-                   on_pre = 'g_i += w_i',
+                   on_pre = 'g_i += w_i_GrC',
                    delay  = tau_r)
-GrC_GoC.connect(p=float(conv_GrC_GoC/nGoC))
+GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 
 ##############
 # Simulation #
 ##############
 
-# Monitor GrC output
-spikes = SpikeMonitor(GrC)
-state  = StateMonitor(GrC, 'v', record = GrC_M[active_indices[0],:])
+# Monitor output
+spikes_GrC = SpikeMonitor(GrC)
+state_GrC  = StateMonitor(GrC, 'v', record = True)
+conde_GrC  = StateMonitor(GrC_M,'g_e', record = True)
+condi_GrC  = StateMonitor(GrC_GoC,'g_i', record = True)
+LFP        = PopulationRateMonitor(GrC)
+spikes_GoC = SpikeMonitor(GoC)
+state_GoC  = StateMonitor(GoC, 'v', record = True)
 
+# Run simulation
 runtime = 30
 run(runtime * ms)
 
-subplot(121);
-plot(state.t/ms, np.transpose(state.v)/mV)
+# Plots
+fig, ax = plt.subplots(2, 3, figsize=(9, 9))
+for g in range(20):
+    ax[0,0].plot(state_GrC.t/ms, state_GrC.v[g]/mV)
+ax[0,0].set_title('GrC Vm (population)')
+ax[0,0].set_xlabel('time (ms)')
+ax[0,0].set_ylabel('Vm (mV)')
 
+ax[0,1].plot(spikes_GrC.t/ms,spikes_GrC.i,'.k')
+for stim in range(nstim):
+    ax[0,1].axvline(stim_times[stim], ls = '-', color = 'r', lw = 2)
+ax[0,1].set_xlim(0,runtime)
+ax[0,1].set_ylim(0,nGrC)
+ax[0,1].set_title('GrC population activity')
+ax[0,1].set_xlabel('time (ms)')
+ax[0,1].set_ylabel('GrC index')
 
-subplot(122);
-plot(spikes.t/ms,spikes.i,'.k')
-xlim(0,runtime); ylim(0,nGrC)
-xlabel('Time (ms)'); ylabel('GrC index')
+for g in range(20):
+    ax[0,2].plot(state_GrC.t/ms, conde_GrC.g_e[g]*(state_GrC.v[g]-E_e_GrC)/pA)
+    ax[0,2].plot(state_GrC.t/ms, condi_GrC.g_i[g]*(state_GrC.v[g]-E_i_GrC)/pA)
+ax[0,2].set_title('GrC EPSC/IPSC')
+ax[0,2].set_xlabel('time (ms)')
+ax[0,2].set_ylabel('I (pA)')
+
+for g in range(nGoC):
+    ax[1,0].plot(state_GoC.t/ms, state_GoC.v[g]/mV)
+ax[1,0].set_title('GoC Vm (population)')
+ax[1,0].set_xlabel('time (ms)')
+ax[1,0].set_ylabel('Vm (mV)')
+
+ax[1,1].plot(spikes_GoC.t/ms,spikes_GoC.i,'.k')
+ax[1,1].set_xlim(0,runtime)
+ax[1,1].set_ylim(0,nGoC)
+ax[1,1].set_title('GoC population activity')
+ax[1,1].set_xlabel('time (ms)')
+ax[1,1].set_ylabel('GoC index')
+
+plt.figure()
+plot(LFP.t/ms, LFP.smooth_rate(window='flat', width=0.5*ms)/Hz)
 
 show()
