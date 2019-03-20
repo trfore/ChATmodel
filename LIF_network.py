@@ -7,7 +7,7 @@ import random
 ##############
 # Parameters #
 ##############
-
+Condition = 'control' # control, GABAzine
 # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
 nmf  =  315                 # Mossy fibers
 nGrC = 4096                 # Granule cells
@@ -65,15 +65,16 @@ w_i_GrC = 0.23 * nS
 w_e_GoC = 0.3  * nS
 
 # Golgi cell stochastic fluctuating excitatory current
-sigma_n = 0.005 * nS
-tau_n   = 1000 * ms
+sigma_n = 0.05 * nS
+tau_n   = 20 * ms
 
 #############
 # Equations #
 #############
 
 GrC_eqs = '''
-dv/dt   = (g_l*(E_l-v) + g_e*(E_e-v) + (g_i+g_t)*(E_i-v))/C_m : volt (unless refractory)
+dv/dt   = (g_l*(E_l-v) + (g_e+g_n)*(E_e-v) + (g_i+g_t)*(E_i-v))/C_m : volt (unless refractory)
+dg_n/dt = (-g_n + sigma_n * sqrt(tau_n) * xi)/tau_n : siemens
 dg_e/dt = -g_e/tau_e : siemens
 dg_i/dt = -g_i/tau_i : siemens
 '''
@@ -109,9 +110,25 @@ mf_input = SpikeGeneratorGroup(nmf, indices, times)
 ######################
 # Neuron populations #
 ######################
-
-GrC = NeuronGroup(nGrC,
-                  Equations(GrC_eqs,
+if Condition == 'GABAzine':
+    GrC = NeuronGroup(nGrC,
+                      Equations(GrC_eqs,
+                                g_l   = g_l_GrC,
+                                g_t   = 0*nS,
+                                E_l   = E_l_GrC,
+                                E_e   = E_e_GrC,
+                                E_i   = E_i_GrC,
+                                C_m   = C_m_GrC,
+                                tau_e = tau_e_decay_GrC,
+                                tau_i = tau_i_decay_GrC),
+                      threshold  = 'v > V_th_GrC',
+                      reset      = 'v = V_r_GrC',
+                      refractory = 'tau_r',
+                      method     = 'euler')
+    GrC.v   = V_r_GrC
+elif Condition == 'control':
+    GrC = NeuronGroup(nGrC,
+                    Equations(GrC_eqs,
                             g_l   = g_l_GrC,
                             g_t   = g_t_GrC,
                             E_l   = E_l_GrC,
@@ -124,7 +141,7 @@ GrC = NeuronGroup(nGrC,
                   reset      = 'v = V_r_GrC',
                   refractory = 'tau_r',
                   method     = 'euler')
-GrC.v   = V_r_GrC
+    GrC.v   = V_r_GrC
 
 GoC = NeuronGroup(nGoC,
                   Equations(GoC_eqs,
@@ -160,9 +177,15 @@ GoC_GrC = Synapses(GrC,GoC,
 GoC_GrC.connect(p = conv_GoC_GrC/nGrC)
 
 # GoC onto GrC (inhibitory)
-GrC_GoC = Synapses(GoC,GrC,
-                   on_pre = 'g_i += w_i_GrC',
-                   delay  = tau_r)
+if Condition == 'GABAzine':
+    GrC_GoC = Synapses(GoC,GrC,
+                       on_pre = 'g_i += 0 * nS',
+                       delay  = tau_r)
+elif Condition == 'control':
+    GrC_GoC = Synapses(GoC,GrC,
+                       on_pre = 'g_i += w_i_GrC',
+                       delay  = tau_r)
+
 GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 
 ##############
