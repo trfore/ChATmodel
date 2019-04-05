@@ -183,7 +183,8 @@ for trial in range(ntrial):
 
     # Run simulation
     runtime = 2000
-    run(runtime * ms)
+    run(runtime * ms, report='stdout', report_period=1*second, 
+        profile=True)
 
     # Save spike times for each simulation
     spike_trains = M.spike_trains()
