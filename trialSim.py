@@ -7,7 +7,7 @@ seed(451)
 ##############
 # Parameters #
 ##############
-Condition = 'Control' # Control, GABAzine, ACh
+Condition = 'ACh' # Control, GABAzine, ACh
 # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
 nmf  =  315                 # Mossy fibers
 nGrC = 4096                 # Granule cells
@@ -45,7 +45,8 @@ tau_e_decay_GoC = 3.0 * ms
 tau_i_decay_GrC = 15.0 * ms
 
 # Absolute refractory period
-tau_r = 2 * ms
+tau_r_GrC = 2 * ms
+tau_r_GoC = 40* ms
 
 # Spiking threshold
 V_th_GrC   = -55 * mV
@@ -110,11 +111,29 @@ for j in range(nstim):
 times    = times * ms
 mf_input = SpikeGeneratorGroup(nmf, indices, times)
 
+
 ######################
 # Neuron populations #
 ######################
-GrC = NeuronGroup(nGrC,
-                  Equations(GrC_eqs,
+if Condition == 'GABAzine':
+    GrC = NeuronGroup(nGrC,
+                      Equations(GrC_eqs,
+                                g_l   = g_l_GrC,
+                                g_t   = 0*nS,
+                                E_l   = E_l_GrC,
+                                E_e   = E_e_GrC,
+                                E_i   = E_i_GrC,
+                                C_m   = C_m_GrC,
+                                tau_e = tau_e_decay_GrC,
+                                tau_i = tau_i_decay_GrC),
+                      threshold  = 'v > V_th_GrC',
+                      reset      = 'v = V_r_GrC',
+                      refractory = 'tau_r_GrC',
+                      method     = 'euler')
+    GrC.v   = V_r_GrC
+elif Condition == 'Control':
+    GrC = NeuronGroup(nGrC,
+                    Equations(GrC_eqs,
                             g_l   = g_l_GrC,
                             g_t   = g_t_GrC,
                             E_l   = E_l_GrC,
@@ -125,9 +144,27 @@ GrC = NeuronGroup(nGrC,
                             tau_i = tau_i_decay_GrC),
                   threshold  = 'v > V_th_GrC',
                   reset      = 'v = V_r_GrC',
-                  refractory = 'tau_r',
+                  refractory = 'tau_r_GrC',
                   method     = 'euler')
-GrC.v   = V_r_GrC
+    GrC.v   = V_r_GrC
+elif Condition == 'ACh':
+    GrC = NeuronGroup(nGrC,
+                    Equations(GrC_eqs,
+                        g_l   = g_l_GrC,
+                        g_t   = 0.5 * g_t_GrC,
+                        E_l   = E_l_GrC,
+                        E_e   = E_e_GrC,
+                        E_i   = E_i_GrC,
+                        C_m   = C_m_GrC,
+                        tau_e = tau_e_decay_GrC,
+                        tau_i = tau_i_decay_GrC),
+              threshold  = 'v > V_th_GrC',
+              reset      = 'v = V_r_GrC',
+              refractory = 'tau_r_GrC',
+              method     = 'euler')
+    GrC.v   = V_r_GrC
+else:
+    print('ERROR: Unknown experimental condition')
 
 GoC = NeuronGroup(nGoC,
                   Equations(GoC_eqs,
@@ -139,33 +176,60 @@ GoC = NeuronGroup(nGoC,
                             tau_e = tau_e_decay_GoC),
                   threshold  = 'v > V_th_GoC',
                   reset      = 'v = V_reset_GoC',
-                  refractory = 'tau_r',
+                  refractory = 'tau_r_GoC',
                   method     = 'euler')
 GoC.v = V_r_GoC
 
 ###################
 # Connect neurons #
 ###################
+if Condition in ('Control', 'GABAzine'):
+    # Mossy fiber onto GrCs
+    GrC_M = Synapses(mf_input,GrC,
+                     on_pre = 'g_e += w_e_GrC')
+    GrC_M.connect(p = conv_GrC_M/nmf)
 
-# Mossy fiber onto GrCs
-GrC_M = Synapses(mf_input,GrC,
-                 on_pre = 'g_e += w_e_GrC')
-GrC_M.connect(p = conv_GrC_M/nmf)
+    # Mossy fiber onto GoCs
+    GoC_M = Synapses(mf_input,GoC,
+                     on_pre = 'g_e += w_e_GoC_M')
+    GoC_M.connect(p = conv_GoC_M/nmf)
 
-# Mossy fiber onto GoCs
-GoC_M = Synapses(mf_input,GoC,
-                 on_pre = 'g_e += w_e_GoC_M')
-GoC_M.connect(p = conv_GoC_M/nmf)
+    # GrC onto GoCs
+    GoC_GrC = Synapses(GrC,GoC,
+                       on_pre = 'g_e += w_e_GoC_GrC')
+    GoC_GrC.connect(p = conv_GoC_GrC/nGrC)
+elif Condition == 'ACh':
+    # Mossy fiber onto GrCs
+    GrC_M = Synapses(mf_input,GrC,
+                     on_pre = 'g_e += 0.4521*w_e_GrC')
+    GrC_M.connect(p = conv_GrC_M/nmf)
 
-# GrC onto GoCs
-GoC_GrC = Synapses(GrC,GoC,
-                   on_pre = 'g_e += w_e_GoC_GrC')
-GoC_GrC.connect(p = conv_GoC_GrC/nGrC)
+    # Mossy fiber onto GoCs
+    GoC_M = Synapses(mf_input,GoC,
+                     on_pre = 'g_e += 0.4578*w_e_GoC_M')
+    GoC_M.connect(p = conv_GoC_M/nmf)
+
+    # GrC onto GoCs
+    GoC_GrC = Synapses(GrC,GoC,
+                       on_pre = 'g_e += 0.4578*w_e_GoC_GrC')
+    GoC_GrC.connect(p = conv_GoC_GrC/nGrC)
+
+    # GoC onto GrC (inhibitory)
+    GrC_GoC = Synapses(GoC,GrC,
+                       on_pre = 'g_i += 0.013 * w_i_GrC',
+                       delay = tau_r_GrC)
+    GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 
 # GoC onto GrC (inhibitory)
-GrC_GoC = Synapses(GoC,GrC,
-                   on_pre = 'g_i += w_i_GrC',
-                   delay  = tau_r)
+if Condition == 'GABAzine':
+    GrC_GoC = Synapses(GoC,GrC,
+                       on_pre = 'g_i += 0 * nS',
+                       delay  = tau_r_GrC)
+elif Condition == 'Control':
+    GrC_GoC = Synapses(GoC,GrC,
+                       on_pre = 'g_i += w_i_GrC',
+                       delay  = tau_r_GrC)
+
 GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 
 ##############
@@ -173,17 +237,17 @@ GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 ##############
 M = SpikeMonitor(GrC)
 state_GrC  = StateMonitor(GrC, 'v', record = True)
-store('Control')
+store(Condition)
 
 spikes = []
-ntrial = 5
+ntrial = 30
 for trial in range(ntrial):
     print('Trial %d' % (trial+1))
-    restore('Control')
+    restore(Condition)
 
     # Run simulation
     runtime = 2000
-    run(runtime * ms, report='stdout', report_period=1*second, 
+    run(runtime * ms, report='stdout', report_period=1*second,
         profile=True)
 
     # Save spike times for each simulation
@@ -214,12 +278,26 @@ mat = scipy.sparse.vstack(mats)
 multi_index = pd.MultiIndex.from_tuples(tuples,names=['trial','neuron'])
 df = pd.SparseDataFrame(mat,index=multi_index)
 
-spike_prob = []
+spike_prob = np.zeros((nGrC,ncol))
+
 for neuron in range(nGrC):
+    neuron_count = neuron+1
+    print('Compiling spike trains for neuron {}'.format(neuron_count), end='\r')
     st = df.loc[(slice(None),neuron),:].to_numpy()
     x = np.nan_to_num(st).astype(bool)
     p = np.sum(x,axis=0)/x.shape[0]
-    spike_prob.append(p)
-np.reshape(spike_prob,(nGrC,ncol))
+    spike_prob[neuron,:] = p
 
-# show()
+if Condition == 'Control':
+    np.save('controlSpikeProb',spike_prob)
+elif Condition == 'GABAzine':
+    np.save('gabaSpikeProb',spike_prob)
+elif Condition == 'ACh':
+    np.save('achSpikeProb',spike_prob)
+else:
+    print('ERROR: Unknown experimental condition')
+# # Generate a dataframe with all of the Mossy Fiber to Granule cell Connections
+# connections = pd.DataFrame({'MF':GrC_M.i[:],'GrC':GrC_M.j[:]})
+
+# # Only look at MF-GrC pairs that are active during the stimulation
+# connections.loc[connections['MF'].isin(mf_indices)].drop_duplicates(['GrC'])
