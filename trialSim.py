@@ -2,12 +2,32 @@ from brian2 import *
 from matplotlib import *
 import numpy as np
 import random
-from fractions import Fraction
-seed(451)
+
+
 ##############
 # Parameters #
 ##############
-Condition = 'ACh' # Control, GABAzine, ACh
+
+# RNG seed
+seed(451)
+
+# Experimental condition to simulate ('Control', 'GABAzine', 'ACh')
+Condition = 'ACh'
+
+# Trial parameters
+runtime = 2000
+ntrial = 30
+
+# Synaptic weight parameters
+random_MF_weight_gamma = True # Logical, if True a random MF w_e weight will be
+                              # determined every trial. IF false, the values
+                              #fixed_GrC_mf_w_e and fixed_GoC_mf_w_e will be
+                              #used
+GrC_M_gamma_shape = 42.25
+GrC_M_gamma_scale = 0.0154
+GoC_M_gamma_shape = 12.25
+GoC_M_gamma_scale = 0.0286
+
 # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
 nmf  =  315                 # Mossy fibers
 nGrC = 4096                 # Granule cells
@@ -30,7 +50,7 @@ E_l_GrC   = -75   * mV
 E_e_GrC   =   0   * mV
 E_i_GrC   = -75   * mV
 
-E_l_GoC   = -50   * mV
+E_l_GoC   = -51   * mV
 E_e_GoC   =   0   * mV
 E_i_GoC   = -75   * mV
 
@@ -60,14 +80,14 @@ V_r_GoC    = -55 * mV
 V_reset_GoC = -60 * mV
 
 # Synaptic weights
-w_e_GrC = 0.65 * nS
+fixed_w_e_GrC = 0.65 * nS
 w_i_GrC = 0.08 * nS
 
-w_e_GoC_M = 0.35  * nS
+fixed_w_e_GoC_M = 0.35  * nS
 w_e_GoC_GrC = 0.0 * nS
 
 # Stochastic fluctuating excitatory current
-sigma_n_GoC = 0.01 * nS
+sigma_n_GoC = 0.1 * nS
 sigma_n_GrC = 0.03 * nS
 
 tau_n   = 20 * ms
@@ -166,31 +186,47 @@ elif Condition == 'ACh':
 else:
     print('ERROR: Unknown experimental condition')
 
-GoC = NeuronGroup(nGoC,
-                  Equations(GoC_eqs,
-                            g_l = g_l_GoC,
-                            E_l = E_l_GoC,
-                            E_e = E_e_GoC,
-                            E_i = E_i_GoC,
-                            C_m = C_m_GoC,
-                            tau_e = tau_e_decay_GoC),
-                  threshold  = 'v > V_th_GoC',
-                  reset      = 'v = V_reset_GoC',
-                  refractory = 'tau_r_GoC',
-                  method     = 'euler')
+if Condition in ('Control','GABAzine'):
+    GoC = NeuronGroup(nGoC,
+                      Equations(GoC_eqs,
+                                g_l = g_l_GoC,
+                                E_l = E_l_GoC,
+                                E_e = E_e_GoC,
+                                E_i = E_i_GoC,
+                                C_m = C_m_GoC,
+                                tau_e = tau_e_decay_GoC),
+                      threshold  = 'v > V_th_GoC',
+                      reset      = 'v = V_reset_GoC',
+                      refractory = 'tau_r_GoC',
+                      method     = 'euler')
+    GoC.v = V_r_GoC
+else:
+    GoC = NeuronGroup(nGoC,
+                      Equations(GoC_eqs,
+                                g_l = g_l_GoC,
+                                E_l = -55*mV,
+                                E_e = E_e_GoC,
+                                E_i = E_i_GoC,
+                                C_m = C_m_GoC,
+                                tau_e = tau_e_decay_GoC),
+                      threshold  = 'v > V_th_GoC',
+                      reset      = 'v = V_reset_GoC',
+                      refractory = 'tau_r_GoC',
+                      method     = 'euler')
 GoC.v = V_r_GoC
-
 ###################
 # Connect neurons #
 ###################
 if Condition in ('Control', 'GABAzine'):
     # Mossy fiber onto GrCs
     GrC_M = Synapses(mf_input,GrC,
+                     model  = 'w_e_GrC : siemens',
                      on_pre = 'g_e += w_e_GrC')
     GrC_M.connect(p = conv_GrC_M/nmf)
 
     # Mossy fiber onto GoCs
     GoC_M = Synapses(mf_input,GoC,
+                     model  = 'w_e_GoC_M : siemens',
                      on_pre = 'g_e += w_e_GoC_M')
     GoC_M.connect(p = conv_GoC_M/nmf)
 
@@ -201,11 +237,13 @@ if Condition in ('Control', 'GABAzine'):
 elif Condition == 'ACh':
     # Mossy fiber onto GrCs
     GrC_M = Synapses(mf_input,GrC,
+                     model  = 'w_e_GrC : siemens',
                      on_pre = 'g_e += 0.4521*w_e_GrC')
     GrC_M.connect(p = conv_GrC_M/nmf)
 
     # Mossy fiber onto GoCs
     GoC_M = Synapses(mf_input,GoC,
+                     model  = 'w_e_GoC_M : siemens',
                      on_pre = 'g_e += 0.4578*w_e_GoC_M')
     GoC_M.connect(p = conv_GoC_M/nmf)
 
@@ -216,7 +254,7 @@ elif Condition == 'ACh':
 
     # GoC onto GrC (inhibitory)
     GrC_GoC = Synapses(GoC,GrC,
-                       on_pre = 'g_i += 0.013 * w_i_GrC',
+                       on_pre = 'g_i += w_i_GrC',
                        delay = tau_r_GrC)
     GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 
@@ -231,6 +269,35 @@ elif Condition == 'Control':
                        delay  = tau_r_GrC)
 
 GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
+
+################################
+# Randomize excitatory weights #
+################################
+if random_MF_weight_gamma is True:
+    active_mf_GrC_weights = dict()
+    active_mf_GoC_weights = dict()
+    print('Randomizing synaptic weights')
+
+    @network_operation(dt=runtime*ms, when='start')
+    def update_input():
+        for i in active_indices:
+            temp_w_GrC_M = np.random.gamma(GrC_M_gamma_shape,
+                                           GrC_M_gamma_scale) * nS
+            temp_w_GoC_M = np.random.gamma(GoC_M_gamma_shape,
+                                           GoC_M_gamma_scale) * nS
+            GrC_M.w_e_GrC[  i,:] = temp_w_GrC_M
+            GoC_M.w_e_GoC_M[i,:] = temp_w_GoC_M
+        # Fill in weight dictionary by mossy fiber number, add new mf key if non-existent
+            if i in active_mf_GrC_weights.keys():
+                active_mf_GrC_weights[i].append(temp_w_GrC_M)
+                active_mf_GoC_weights[i].append(temp_w_GoC_M)
+            else:
+                active_mf_GrC_weights[i] = [temp_w_GrC_M]
+                active_mf_GoC_weights[i] = [temp_w_GoC_M]
+else:
+    print('Using fixed synaptic weights')
+    GrC_M.w_e_GrC[active_indices,:]   = fixed_w_e_GrC
+    GoC_M.w_e_GoC_M[active_indices,:] = fixed_w_e_GoC_M
 
 ##############
 # Simulation #
@@ -260,7 +327,7 @@ for trial in range(ntrial):
 import pandas as pd
 import scipy.sparse
 dt     = 1e-3
-ncol = int(runtime*10**-3/dt)
+ncol = int(runtime*1e-3/dt)
 mats   = []
 tuples = []
 for trial_idx  in range(ntrial):
@@ -289,15 +356,25 @@ for neuron in range(nGrC):
     spike_prob[neuron,:] = p
 
 if Condition == 'Control':
-    np.save('controlSpikeProb',spike_prob)
+    if random_MF_weight_gamma:
+        np.save('randomized_controlSpikeProb',spike_prob)
+    else:
+        np.save('controlSpikeProb',spike_prob)
 elif Condition == 'GABAzine':
-    np.save('gabaSpikeProb',spike_prob)
+    if random_MF_weight_gamma:
+        np.save('randomized_gabaSpikeProb',spike_prob)
+    else:
+        np.save('gabaSpikeProb',spike_prob)
 elif Condition == 'ACh':
-    np.save('achSpikeProb',spike_prob)
+    if random_MF_weight_gamma:
+        np.save('randomized_achSpikeProb',spike_prob)
+    else:
+        np.save('achSpikeProb',spike_prob)
 else:
     print('ERROR: Unknown experimental condition')
-# # Generate a dataframe with all of the Mossy Fiber to Granule cell Connections
-# connections = pd.DataFrame({'MF':GrC_M.i[:],'GrC':GrC_M.j[:]})
 
-# # Only look at MF-GrC pairs that are active during the stimulation
-# connections.loc[connections['MF'].isin(mf_indices)].drop_duplicates(['GrC'])
+# Generate a dataframe with all of the Mossy Fiber to Granule cell Connections
+connections = pd.DataFrame({'MF':GrC_M.i[:],'GrC':GrC_M.j[:]})
+
+# Only look at MF-GrC pairs that are active during the stimulation
+connections.loc[connections['MF'].isin(mf_indices)].drop_duplicates(['GrC'])

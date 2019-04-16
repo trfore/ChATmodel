@@ -7,7 +7,21 @@ seed(451)
 ##############
 # Parameters #
 ##############
-Condition = 'Control' # Control, GABAzine, ACh
+Condition = 'GABAzine' # Control, GABAzine, ACh
+
+# Trial parameters
+runtime = 2000
+
+# Synaptic weight parameters
+random_MF_weight_gamma = True # Logical, if True a random MF w_e weight will be
+                              # determined every trial. IF false, the values
+                              #fixed_GrC_mf_w_e and fixed_GoC_mf_w_e will be
+                              #used
+GrC_M_gamma_shape = 42.25
+GrC_M_gamma_scale = 0.0154
+GoC_M_gamma_shape = 12.25
+GoC_M_gamma_scale = 0.0286
+
 # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
 nmf  =  315                 # Mossy fibers
 nGrC = 4096                 # Granule cells
@@ -30,7 +44,7 @@ E_l_GrC   = -75   * mV
 E_e_GrC   =   0   * mV
 E_i_GrC   = -75   * mV
 
-E_l_GoC   = -50   * mV
+E_l_GoC   = -51   * mV
 E_e_GoC   =   0   * mV
 E_i_GoC   = -75   * mV
 
@@ -45,7 +59,8 @@ tau_e_decay_GoC = 3.0 * ms
 tau_i_decay_GrC = 15.0 * ms
 
 # Absolute refractory period
-tau_r = 2 * ms
+tau_r_GrC = 2 * ms
+tau_r_GoC = 10* ms
 
 # Spiking threshold
 V_th_GrC   = -55 * mV
@@ -59,14 +74,14 @@ V_r_GoC    = -55 * mV
 V_reset_GoC = -60 * mV
 
 # Synaptic weights
-w_e_GrC = 0.65 * nS
+fixed_w_e_GrC = 0.65 * nS
 w_i_GrC = 0.08 * nS
 
-w_e_GoC_M = 0.35  * nS
+fixed_w_e_GoC_M = 0.35  * nS
 w_e_GoC_GrC = 0.0 * nS
 
 # Stochastic fluctuating excitatory current
-sigma_n_GoC = 0.01 * nS
+sigma_n_GoC = 0.1 * nS
 sigma_n_GrC = 0.03 * nS
 
 tau_n   = 20 * ms
@@ -127,7 +142,7 @@ if Condition == 'GABAzine':
                                 tau_i = tau_i_decay_GrC),
                       threshold  = 'v > V_th_GrC',
                       reset      = 'v = V_r_GrC',
-                      refractory = 'tau_r',
+                      refractory = 'tau_r_GrC',
                       method     = 'euler')
     GrC.v   = V_r_GrC
 elif Condition == 'Control':
@@ -143,7 +158,7 @@ elif Condition == 'Control':
                             tau_i = tau_i_decay_GrC),
                   threshold  = 'v > V_th_GrC',
                   reset      = 'v = V_r_GrC',
-                  refractory = 'tau_r',
+                  refractory = 'tau_r_GrC',
                   method     = 'euler')
     GrC.v   = V_r_GrC
 elif Condition == 'ACh':
@@ -159,24 +174,37 @@ elif Condition == 'ACh':
                         tau_i = tau_i_decay_GrC),
               threshold  = 'v > V_th_GrC',
               reset      = 'v = V_r_GrC',
-              refractory = 'tau_r',
+              refractory = 'tau_r_GrC',
               method     = 'euler')
     GrC.v   = V_r_GrC
 else:
     print('ERROR: Unknown experimental condition')
-
-GoC = NeuronGroup(nGoC,
-                  Equations(GoC_eqs,
-                            g_l = g_l_GoC,
-                            E_l = E_l_GoC,
-                            E_e = E_e_GoC,
-                            E_i = E_i_GoC,
-                            C_m = C_m_GoC,
-                            tau_e = tau_e_decay_GoC),
-                  threshold  = 'v > V_th_GoC',
-                  reset      = 'v = V_reset_GoC',
-                  refractory = 'tau_r',
-                  method     = 'euler')
+if Condition in ('Control','GABAzine'):
+    GoC = NeuronGroup(nGoC,
+                      Equations(GoC_eqs,
+                                g_l = g_l_GoC,
+                                E_l = E_l_GoC,
+                                E_e = E_e_GoC,
+                                E_i = E_i_GoC,
+                                C_m = C_m_GoC,
+                                tau_e = tau_e_decay_GoC),
+                      threshold  = 'v > V_th_GoC',
+                      reset      = 'v = V_reset_GoC',
+                      refractory = 'tau_r_GoC',
+                      method     = 'euler')
+else:
+    GoC = NeuronGroup(nGoC,
+                      Equations(GoC_eqs,
+                                g_l = g_l_GoC,
+                                E_l = -55*mV,
+                                E_e = E_e_GoC,
+                                E_i = E_i_GoC,
+                                C_m = C_m_GoC,
+                                tau_e = tau_e_decay_GoC),
+                      threshold  = 'v > V_th_GoC',
+                      reset      = 'v = V_reset_GoC',
+                      refractory = 'tau_r_GoC',
+                      method     = 'euler')
 GoC.v = V_r_GoC
 
 ###################
@@ -185,11 +213,13 @@ GoC.v = V_r_GoC
 if Condition in ('Control', 'GABAzine'):
     # Mossy fiber onto GrCs
     GrC_M = Synapses(mf_input,GrC,
+                     model  = 'w_e_GrC : siemens',
                      on_pre = 'g_e += w_e_GrC')
     GrC_M.connect(p = conv_GrC_M/nmf)
 
     # Mossy fiber onto GoCs
     GoC_M = Synapses(mf_input,GoC,
+                     model  = 'w_e_GoC_M : siemens',
                      on_pre = 'g_e += w_e_GoC_M')
     GoC_M.connect(p = conv_GoC_M/nmf)
 
@@ -200,11 +230,13 @@ if Condition in ('Control', 'GABAzine'):
 elif Condition == 'ACh':
     # Mossy fiber onto GrCs
     GrC_M = Synapses(mf_input,GrC,
+                     model  = 'w_e_GrC : siemens',
                      on_pre = 'g_e += 0.4521*w_e_GrC')
     GrC_M.connect(p = conv_GrC_M/nmf)
 
     # Mossy fiber onto GoCs
     GoC_M = Synapses(mf_input,GoC,
+                     model  = 'w_e_GoC_M : siemens',
                      on_pre = 'g_e += 0.4578*w_e_GoC_M')
     GoC_M.connect(p = conv_GoC_M/nmf)
 
@@ -215,21 +247,50 @@ elif Condition == 'ACh':
 
     # GoC onto GrC (inhibitory)
     GrC_GoC = Synapses(GoC,GrC,
-                       on_pre = 'g_i += 0.013 * w_i_GrC',
-                       delay = tau_r)
+                       on_pre = 'g_i += w_i_GrC',
+                       delay = tau_r_GrC)
     GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
 
 # GoC onto GrC (inhibitory)
 if Condition == 'GABAzine':
     GrC_GoC = Synapses(GoC,GrC,
                        on_pre = 'g_i += 0 * nS',
-                       delay  = tau_r)
+                       delay  = tau_r_GrC)
 elif Condition == 'Control':
     GrC_GoC = Synapses(GoC,GrC,
                        on_pre = 'g_i += w_i_GrC',
-                       delay  = tau_r)
+                       delay  = tau_r_GrC)
 
 GrC_GoC.connect(p = conv_GrC_GoC/nGoC)
+
+################################
+# Randomize excitatory weights #
+################################
+if random_MF_weight_gamma is True:
+    active_mf_GrC_weights = dict()
+    active_mf_GoC_weights = dict()
+    print('Randomizing synaptic weights')
+
+    @network_operation(dt=runtime*ms, when='start')
+    def update_input():
+        for i in active_indices:
+            temp_w_GrC_M = np.random.gamma(GrC_M_gamma_shape,
+                                           GrC_M_gamma_scale) * nS
+            temp_w_GoC_M = np.random.gamma(GoC_M_gamma_shape,
+                                           GoC_M_gamma_scale) * nS
+            GrC_M.w_e_GrC[  i,:] = temp_w_GrC_M
+            GoC_M.w_e_GoC_M[i,:] = temp_w_GoC_M
+        # Fill in weight dictionary by mossy fiber number, add new mf key if non-existent
+            if i in active_mf_GrC_weights.keys():
+                active_mf_GrC_weights[i].append(temp_w_GrC_M)
+                active_mf_GoC_weights[i].append(temp_w_GoC_M)
+            else:
+                active_mf_GrC_weights[i] = [temp_w_GrC_M]
+                active_mf_GoC_weights[i] = [temp_w_GoC_M]
+else:
+    print('Using fixed synaptic weights')
+    GrC_M.w_e_GrC[active_indices,:]   = fixed_w_e_GrC
+    GoC_M.w_e_GoC_M[active_indices,:] = fixed_w_e_GoC_M
 
 ##############
 # Simulation #
@@ -246,7 +307,6 @@ state_GoC  = StateMonitor(GoC, 'v', record = True)
 conde_GoC  = StateMonitor(GoC_M,'g_e', record = True)
 
 # Run simulation
-runtime = 2000
 run(runtime * ms)
 
 spikes = spikes_GrC.spike_trains()
@@ -260,13 +320,14 @@ fig, ax = plt.subplots(2, 3, figsize=(9, 9))
 for g in range(20):
     ax[0,0].plot(state_GrC.t/ms, state_GrC.v[g]/mV)
 ax[0,0].set_title('GrC Vm (population)')
+ax[0,0].set_xlim(stim_times[0]-10,stim_times[-1]+30)
 ax[0,0].set_xlabel('time (ms)')
 ax[0,0].set_ylabel('Vm (mV)')
 
 ax[0,1].plot(spikes_GrC.t/ms,spikes_GrC.i,'.k')
 for stim in range(nstim):
     ax[0,1].axvline(stim_times[stim], ls = '-', color = 'r', lw = 2)
-ax[0,1].set_xlim(0,runtime)
+ax[0,1].set_xlim(stim_times[0]-10,stim_times[-1]+30)
 ax[0,1].set_ylim(0,nGrC)
 ax[0,1].set_title('GrC population activity')
 ax[0,1].set_xlabel('time (ms)')
@@ -276,6 +337,7 @@ for g in range(20):
     ax[0,2].plot(state_GrC.t/ms, conde_GrC.g_e[g]*(-70*mV-E_e_GrC)/pA)
     ax[0,2].plot(state_GrC.t/ms, condi_GrC.g_i[g]*(10*mV-E_i_GrC)/pA)
 ax[0,2].set_title('GrC EPSC/IPSC')
+ax[0,2].set_xlim(stim_times[0]-10,stim_times[-1]+30)
 ax[0,2].set_xlabel('time (ms)')
 ax[0,2].set_ylabel('I (pA)')
 ax[0,2].set_ylim(-60,60)
@@ -285,9 +347,10 @@ for g in range(nGoC):
 ax[1,0].set_title('GoC Vm (population)')
 ax[1,0].set_xlabel('time (ms)')
 ax[1,0].set_ylabel('Vm (mV)')
+ax[1,0].set_xlim(stim_times[0]-10,stim_times[-1]+30)
 
 ax[1,1].plot(spikes_GoC.t/ms,spikes_GoC.i,'.k')
-ax[1,1].set_xlim(0,runtime)
+ax[1,1].set_xlim(stim_times[0]-10,stim_times[-1]+30)
 ax[1,1].set_ylim(0,nGoC)
 ax[1,1].set_title('GoC population activity')
 ax[1,1].set_xlabel('time (ms)')
@@ -298,9 +361,10 @@ for g in range(nGoC):
 ax[1,2].set_title('GoC EPSC')
 ax[1,2].set_xlabel('time(ms)')
 ax[1,2].set_ylabel('I (pA)')
+ax[1,2].set_xlim(stim_times[0]-10,stim_times[-1]+30)
 ax[1,2].set_ylim(-140,5)
 
 plt.figure()
 plot(LFP.t/ms, LFP.smooth_rate(window='flat', width=0.5*ms)/Hz)
-
+xlim(stim_times[0]-10,stim_times[-1]+30)
 show()
