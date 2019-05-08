@@ -176,7 +176,7 @@ elif Condition == 'ACh':
                       method     = 'euler')
     GrC.v   = V_r_GrC
     # Tonic reduction mean = 0.4 (60% reduction) variance = 0.07
-    GrC.reduce_tonic[:] = np.random.gamma(32.6531,0.0123,nGrC)
+    GrC.reduce_tonic[:] = np.random.RandomState(seed=1).gamma(32.6531,0.0123,nGrC)
 else:
     print('ERROR: Unknown experimental condition')
 

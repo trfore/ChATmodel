@@ -2,13 +2,13 @@ from brian2 import *
 from matplotlib import *
 import numpy as np
 import random
-from fractions import Fraction
+
 seed(451)
 ##############
 # Parameters #
 ##############
-Condition = 'Control' # Control, GABAzine, ACh
-
+Condition = 'ACh' # Control, GABAzine, ACh
+plots_on = False
 # Trial parameters
 runtime = 2000
 
@@ -177,7 +177,7 @@ elif Condition == 'ACh':
                       method     = 'euler')
     GrC.v   = V_r_GrC
     # Tonic reduction mean = 0.4 (60% reduction) variance = 0.07
-    GrC.reduce_tonic[:] = np.random.gamma(32.6531,0.0123,nGrC)
+    GrC.reduce_tonic[:] = np.random.RandomState(seed=1).gamma(32.6531,0.0123,nGrC)
 else:
     print('ERROR: Unknown experimental condition')
 
@@ -307,62 +307,72 @@ spikes = spikes_GrC.spike_trains()
 row = np.concatenate([[key]*len(val) for key,val in spikes.items()])
 to_plot = np.unique(row).astype(int)
 num_active = len(to_plot)
-fraction_active = Fraction(num_active,nGrC)
 print('Active fraction: ', num_active,'/',nGrC)
 
 unique_GrC,input_counts = np.unique(GrC_M.j[active_indices,:],return_counts=True)
 unique_counts,num_cells = np.unique(input_counts,return_counts=True)
 print(dict(zip(unique_counts,num_cells)))
-# Plots
-fig, ax = plt.subplots(2, 3, figsize=(9, 9))
-for g in to_plot:
-    ax[0,0].plot(state_GrC.t/ms, state_GrC.v[g]/mV)
-ax[0,0].set_title('GrC Vm (population)')
-ax[0,0].set_xlim(stim_times[0]-10,stim_times[-1]+30)
-ax[0,0].set_xlabel('time (ms)')
-ax[0,0].set_ylabel('Vm (mV)')
 
-ax[0,1].plot(spikes_GrC.t/ms,spikes_GrC.i,'.k')
-for stim in range(nstim):
-    ax[0,1].axvline(stim_times[stim], ls = '-', color = 'r', lw = 2)
-ax[0,1].set_xlim(stim_times[0]-10,stim_times[-1]+30)
-ax[0,1].set_ylim(0,nGrC)
-ax[0,1].set_title('GrC population activity')
-ax[0,1].set_xlabel('time (ms)')
-ax[0,1].set_ylabel('GrC index')
-
-for g in to_plot:
-    ax[0,2].plot(state_GrC.t/ms, state_GrC.g_e_tot_GrC[g]*(-70*mV-E_e_GrC)/pA)
-    ax[0,2].plot(state_GrC.t/ms, state_GrC.g_i_tot_GrC[g]*(10*mV-E_i_GrC)/pA)
-ax[0,2].set_title('GrC EPSC/IPSC')
-ax[0,2].set_xlim(stim_times[0]-10,stim_times[-1]+30)
-ax[0,2].set_xlabel('time (ms)')
-ax[0,2].set_ylabel('I (pA)')
+connections = zip(GrC_M.i[active_indices,:],GrC_M.j[active_indices,:])
+if Condition == 'Control':
+    np.save('controlConnections',connections)
+    np.save('controlWeights', active_mf_GrC_weights)
+elif Condition == 'ACh':
+    np.save('achConnections',connections)
+    np.save('achWeights', active_mf_GrC_weights)
 
 
-for g in range(nGoC):
-    ax[1,0].plot(state_GoC.t/ms, state_GoC.v[g]/mV)
-ax[1,0].set_title('GoC Vm (population)')
-ax[1,0].set_xlabel('time (ms)')
-ax[1,0].set_ylabel('Vm (mV)')
-ax[1,0].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+if plots_on:
+    # Plots
+    fig, ax = plt.subplots(2, 3, figsize=(9, 9))
+    for g in to_plot:
+        ax[0,0].plot(state_GrC.t/ms, state_GrC.v[g]/mV)
+    ax[0,0].set_title('GrC Vm (population)')
+    ax[0,0].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+    ax[0,0].set_xlabel('time (ms)')
+    ax[0,0].set_ylabel('Vm (mV)')
 
-ax[1,1].plot(spikes_GoC.t/ms,spikes_GoC.i,'.k')
-ax[1,1].set_xlim(stim_times[0]-10,stim_times[-1]+30)
-ax[1,1].set_ylim(0,nGoC)
-ax[1,1].set_title('GoC population activity')
-ax[1,1].set_xlabel('time (ms)')
-ax[1,1].set_ylabel('GoC index')
+    ax[0,1].plot(spikes_GrC.t/ms,spikes_GrC.i,'.k')
+    for stim in range(nstim):
+        ax[0,1].axvline(stim_times[stim], ls = '-', color = 'r', lw = 2)
+    ax[0,1].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+    ax[0,1].set_ylim(0,nGrC)
+    ax[0,1].set_title('GrC population activity')
+    ax[0,1].set_xlabel('time (ms)')
+    ax[0,1].set_ylabel('GrC index')
 
-for g in range(nGoC):
-    ax[1,2].plot(state_GoC.t/ms, state_GoC.g_e_tot_GoC[g]*(-60*mV-E_e_GrC)/pA)
-ax[1,2].set_title('GoC EPSC')
-ax[1,2].set_xlabel('time(ms)')
-ax[1,2].set_ylabel('I (pA)')
-ax[1,2].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+    for g in to_plot:
+        ax[0,2].plot(state_GrC.t/ms, state_GrC.g_e_tot_GrC[g]*(-70*mV-E_e_GrC)/pA)
+        ax[0,2].plot(state_GrC.t/ms, state_GrC.g_i_tot_GrC[g]*(10*mV-E_i_GrC)/pA)
+    ax[0,2].set_title('GrC EPSC/IPSC')
+    ax[0,2].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+    ax[0,2].set_xlabel('time (ms)')
+    ax[0,2].set_ylabel('I (pA)')
 
 
-plt.figure()
-plot(LFP.t/ms, LFP.smooth_rate(window='flat', width=0.5*ms)/Hz)
-xlim(stim_times[0]-10,stim_times[-1]+30)
-show(block=False)
+    for g in range(nGoC):
+        ax[1,0].plot(state_GoC.t/ms, state_GoC.v[g]/mV)
+    ax[1,0].set_title('GoC Vm (population)')
+    ax[1,0].set_xlabel('time (ms)')
+    ax[1,0].set_ylabel('Vm (mV)')
+    ax[1,0].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+
+    ax[1,1].plot(spikes_GoC.t/ms,spikes_GoC.i,'.k')
+    ax[1,1].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+    ax[1,1].set_ylim(0,nGoC)
+    ax[1,1].set_title('GoC population activity')
+    ax[1,1].set_xlabel('time (ms)')
+    ax[1,1].set_ylabel('GoC index')
+
+    for g in range(nGoC):
+        ax[1,2].plot(state_GoC.t/ms, state_GoC.g_e_tot_GoC[g]*(-60*mV-E_e_GrC)/pA)
+    ax[1,2].set_title('GoC EPSC')
+    ax[1,2].set_xlabel('time(ms)')
+    ax[1,2].set_ylabel('I (pA)')
+    ax[1,2].set_xlim(stim_times[0]-10,stim_times[-1]+30)
+
+
+    plt.figure()
+    plot(LFP.t/ms, LFP.smooth_rate(window='flat', width=0.5*ms)/Hz)
+    xlim(stim_times[0]-10,stim_times[-1]+30)
+    show(block=False)
