@@ -6,21 +6,18 @@ import scipy.sparse
 import random
 
 seed(451)
-
 ##############
 # Parameters #
 ##############
 Condition = 'ACh' # Control, GABAzine, ACh
-
+plots_on = False
 # Trial parameters
 runtime = 2000
 
 # Synaptic weight parameters
 random_weights    = True
-GrC_M_gamma_shape = 1.5625
-GrC_M_gamma_scale = 0.16
-GoC_M_gamma_shape = 1.5625
-GoC_M_gamma_scale = 0.16
+weights_gamma_shape = 1.5625
+weights_gamma_scale = 0.16
 
 # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
 nmf  =  315                 # Mossy fibers
@@ -69,16 +66,21 @@ V_th_GoC   = -50 * mV
 V_r_GrC    = -75 * mV
 V_r_GoC    = -55 * mV
 
-# Synaptic weights
-fixed_w_e_GrC   = 0.25 * nS #0.65 * nS
-w_i_GrC         = 0.17 * nS
-fixed_w_e_GoC_M = 0.65 * nS #0.35  * nS
+# Golgi cell reset potential
+V_reset_GoC = -55 * mV #-60
 
+# Synaptic weights
+fixed_w_e_GrC = 0.25 * nS #0.65 * nS
+w_i_GrC = 0.17 * nS
+
+fixed_w_e_GoC_M = 0.65 * nS #0.35  * nS
+w_e_GoC_GrC = 0.0 * nS
 
 # Stochastic fluctuating excitatory current
-sigma_n_GoC = 0.1  * nS
+sigma_n_GoC = 0.1 * nS
 sigma_n_GrC = 0.03 * nS
-tau_n       = 20   * ms
+
+tau_n   = 20 * ms
 
 #############
 # Equations #
@@ -114,10 +116,9 @@ n_active   = round(nmf/20)           # Fraction of mfs active at each stimulatio
 # If you want a different subset of mossy fibers at each stimulation, move
 # the declaration of [active_indices] into the loop over stim_times
 random.seed(a=451)
-
 active_indices = [mf_indices[i] for i in sorted(random.sample(range(len(mf_indices)),n_active))]
-indices        = []
-times          = []
+indices    = []
+times      = []
 for j in range(nstim):
     indices.extend(active_indices)
     times.extend([stim_times[j]]*len(active_indices))
@@ -268,24 +269,25 @@ if random_weights:
 
     @network_operation(dt=runtime*ms, when='start')
     def update_input():
+        active_weights = np.random.RandomState(seed=3).gamma(weights_gamma_shape,
+                                                             weights_gamma_scale,n_active)*nS
+        tempidx = 0
         for i in active_indices:
-            temp_w_GrC_M = np.random.gamma(GrC_M_gamma_shape,
-                                           GrC_M_gamma_scale) * nS
-            temp_w_GoC_M = np.random.gamma(GoC_M_gamma_shape,
-                                           GoC_M_gamma_scale) * nS
-            GrC_M.w_e_GrC[  i,:] = temp_w_GrC_M
-            GoC_M.w_e_GoC_M[i,:] = temp_w_GoC_M
+            GrC_M.w_e_GrC[  i,:] = active_weights[tempidx]
+            GoC_M.w_e_GoC_M[i,:] = active_weights[tempidx]
         # Fill in weight dictionary by mossy fiber number, add new mf key if non-existent
             if i in active_mf_GrC_weights.keys():
-                active_mf_GrC_weights[i].append(temp_w_GrC_M)
-                active_mf_GoC_weights[i].append(temp_w_GoC_M)
+                active_mf_GrC_weights[i].append(active_weights[tempidx]/nS)
+                active_mf_GoC_weights[i].append(active_weights[tempidx]/nS)
             else:
-                active_mf_GrC_weights[i] = [temp_w_GrC_M]
-                active_mf_GoC_weights[i] = [temp_w_GoC_M]
+                active_mf_GrC_weights[i] = active_weights[tempidx]/nS
+                active_mf_GoC_weights[i] = active_weights[tempidx]/nS
+            tempidx += 1
 else:
     print('Using fixed synaptic weights')
     GrC_M.w_e_GrC[active_indices,:]   = fixed_w_e_GrC
     GoC_M.w_e_GoC_M[active_indices,:] = fixed_w_e_GoC_M
+
 
 ##############
 # Simulation #

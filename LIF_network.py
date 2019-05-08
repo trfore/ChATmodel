@@ -14,10 +14,8 @@ runtime = 2000
 
 # Synaptic weight parameters
 random_weights    = True
-GrC_M_gamma_shape = 1.5625
-GrC_M_gamma_scale = 0.16
-GoC_M_gamma_shape = 1.5625
-GoC_M_gamma_scale = 0.16
+weights_gamma_shape = 1.5625
+weights_gamma_scale = 0.16
 
 # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
 nmf  =  315                 # Mossy fibers
@@ -269,20 +267,20 @@ if random_weights:
 
     @network_operation(dt=runtime*ms, when='start')
     def update_input():
+        active_weights = np.random.RandomState(seed=3).gamma(weights_gamma_shape,
+                                                             weights_gamma_scale,n_active)*nS
+        tempidx = 0
         for i in active_indices:
-            temp_w_GrC_M = np.random.gamma(GrC_M_gamma_shape,
-                                           GrC_M_gamma_scale) * nS
-            temp_w_GoC_M = np.random.gamma(GoC_M_gamma_shape,
-                                           GoC_M_gamma_scale) * nS
-            GrC_M.w_e_GrC[  i,:] = temp_w_GrC_M
-            GoC_M.w_e_GoC_M[i,:] = temp_w_GoC_M
+            GrC_M.w_e_GrC[  i,:] = active_weights[tempidx]
+            GoC_M.w_e_GoC_M[i,:] = active_weights[tempidx]
         # Fill in weight dictionary by mossy fiber number, add new mf key if non-existent
             if i in active_mf_GrC_weights.keys():
-                active_mf_GrC_weights[i].append(temp_w_GrC_M)
-                active_mf_GoC_weights[i].append(temp_w_GoC_M)
+                active_mf_GrC_weights[i].append(active_weights[tempidx]/nS)
+                active_mf_GoC_weights[i].append(active_weights[tempidx]/nS)
             else:
-                active_mf_GrC_weights[i] = [temp_w_GrC_M]
-                active_mf_GoC_weights[i] = [temp_w_GoC_M]
+                active_mf_GrC_weights[i] = active_weights[tempidx]/nS
+                active_mf_GoC_weights[i] = active_weights[tempidx]/nS
+            tempidx += 1
 else:
     print('Using fixed synaptic weights')
     GrC_M.w_e_GrC[active_indices,:]   = fixed_w_e_GrC
@@ -313,13 +311,16 @@ unique_GrC,input_counts = np.unique(GrC_M.j[active_indices,:],return_counts=True
 unique_counts,num_cells = np.unique(input_counts,return_counts=True)
 print(dict(zip(unique_counts,num_cells)))
 
-connections = zip(GrC_M.i[active_indices,:],GrC_M.j[active_indices,:])
+import pandas as pd
+connections = pd.DataFrame({'MF':GrC_M.i[active_indices,:],'GrC':GrC_M.j[active_indices,:]})
 if Condition == 'Control':
     np.save('controlConnections',connections)
     np.save('controlWeights', active_mf_GrC_weights)
 elif Condition == 'ACh':
     np.save('achConnections',connections)
     np.save('achWeights', active_mf_GrC_weights)
+    reduce_tonic = GrC.reduce_tonic[np.unique(GrC_M.j[active_indices,:])]
+    np.save('tonicReduction',reduce_tonic)
 
 
 if plots_on:
