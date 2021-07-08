@@ -46,10 +46,10 @@ pip install --user matplotlib==3.0.2
 Alternatively using Anaconda, you can use the specification file provided to create an identical conda environment to run the scripts by typing in terminal:
 
 ```
-conda create --name myenv --file spec-file.txt
+conda create --name myenv --file requirements.txt
 ```
 
-This spec was created on the osx-64 platorm, and may not work correctly on others. See [documentation](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) for more details.
+This 'requirements.txt' file was created on the osx-64 platform, and may not work correctly on others. See [documentation](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) for more details.
 
 ### Code repository
 
