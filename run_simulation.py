@@ -392,12 +392,12 @@ def trial_sim(Condition):
     multi_index = pd.MultiIndex.from_tuples(tuples,names=['trial','neuron'])
 
     mat = scipy.sparse.vstack(mats)
-    df = pd.SparseDataFrame(mat,index=multi_index)
+    df = pd.DataFrame.sparse.from_spmatrix(mat, index=multi_index)
 
-    mat_cond_e = scipy.vstack(cond_e_mats)
+    mat_cond_e = np.vstack(cond_e_mats)
     df_cond_e = pd.DataFrame(mat_cond_e,index=multi_index)
 
-    mat_cond_i = scipy.vstack(cond_i_mats)
+    mat_cond_i = np.vstack(cond_i_mats)
     df_cond_i = pd.DataFrame(mat_cond_i,index=multi_index)
 
     spike_prob = np.zeros((nGrC,ncol))
