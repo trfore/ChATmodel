@@ -5,6 +5,30 @@ import numpy as np
 import pandas as pd
 import scipy.sparse
 import random
+import os
+
+'''
+Environment Variables
+---------------------
+CHAT_NUM_MF : int, default = 315
+    number of mossy fiber inputs
+CHAT_NUM_GRC : int, default = 4096
+    number of granule cells
+CHAT_NUM_GOC : int, default = 27
+    number of golgi cells
+CHAT_NUM_TRIAL : int, default = 100
+    number of trials for the simulation
+CHAT_RANDOM_WEIGHTS : boolean, default = True
+    use random weights for synaptic connections
+CHAT_SEED_TRIAL : int, default = 451
+    seed value for trial runs
+CHAT_SEED_WEIGHT_MEANS : int, default = 35
+    seed value for generating the random synaptic weight 
+
+Use:
+$ export CHAT_NUM_TRIAL=50
+$ export CHAT_NUM_TRIAL=100 CHAT_NUM_MF=315 CHAT_NUM_GRC=4096 CHAT_NUM_GOC=27 # 100um^3 (published: biologically relevant)
+'''
 
 def main():
     Conditions = ['Control','GABAzine','ACh']
@@ -26,7 +50,7 @@ def trial_sim(Condition):
         scale = float(sol_theta)
         return shape, scale
 
-    seed(451)
+    seed(int(os.getenv("CHAT_SEED_TRIAL", 451)))
     ##############
     # Parameters #
     ##############
@@ -35,14 +59,14 @@ def trial_sim(Condition):
     runtime = 2000
 
     # Synaptic weight parameters
-    random_weights    = True
+    random_weights = bool(os.getenv("CHAT_RANDOM_WEIGHTS", True))
     # weights_gamma_shape,weights_gamma_scale = gamma_parms(0.15,0.2)
     weights_gamma_shape,weights_gamma_scale = gamma_parms(0.1,0.1)
 
     # Cell numbers to reproduce functionally relevant 100um^3 cube of granular layer
-    nmf  =  315                 # Mossy fibers
-    nGrC = 4096                 # Granule cells
-    nGoC =   27                 # Golgi cells
+    nmf  = int(os.getenv("CHAT_NUM_MF", 315))   # Mossy fibers
+    nGrC = int(os.getenv("CHAT_NUM_GRC", 4096)) # Granule cells
+    nGoC = int(os.getenv("CHAT_NUM_GOC", 27))   # Golgi cells
 
     # Convergence ratios of connections (to determine connection probabilities)
     conv_GrC_M   =   4          #  mf -> GrC synapses
@@ -136,7 +160,7 @@ def trial_sim(Condition):
     # If you want a different subset of mossy fibers at each stimulation, move
     # the declaration of [active_indices] into the loop over stim_times
 
-    random.seed(a=451)
+    random.seed(a=int(os.getenv("CHAT_SEED_TRIAL", 451)))
     active_indices = [mf_indices[i] for i in sorted(random.sample(range(len(mf_indices)),n_active))]
     indices    = []
     times      = []
@@ -288,7 +312,7 @@ def trial_sim(Condition):
 
         @network_operation(dt=runtime*ms, when='start')
         def update_input():
-            weight_means = np.random.RandomState(seed=35).gamma(weights_gamma_shape,weights_gamma_scale,n_active)
+            weight_means = np.random.RandomState(seed=int(os.getenv("CHAT_SEED_WEIGHT_MEANS", 35))).gamma(weights_gamma_shape,weights_gamma_scale,n_active)
             # weight_sigma = 0.2
             tempidx = 0
             for i in active_indices:
@@ -328,7 +352,7 @@ def trial_sim(Condition):
     cond_e_mats = []
     cond_i_mats = []
     # Number of trials to simulate
-    ntrial = 100
+    ntrial = int(os.getenv("CHAT_NUM_TRIAL", 100))
     seeds = np.random.RandomState(seed=43).randint(1,1000,ntrial)
     for trial in range(ntrial):
         print('Trial {}'.format((trial+1)))
@@ -368,12 +392,12 @@ def trial_sim(Condition):
     multi_index = pd.MultiIndex.from_tuples(tuples,names=['trial','neuron'])
 
     mat = scipy.sparse.vstack(mats)
-    df = pd.SparseDataFrame(mat,index=multi_index)
+    df = pd.DataFrame.sparse.from_spmatrix(mat, index=multi_index)
 
-    mat_cond_e = scipy.vstack(cond_e_mats)
+    mat_cond_e = np.vstack(cond_e_mats)
     df_cond_e = pd.DataFrame(mat_cond_e,index=multi_index)
 
-    mat_cond_i = scipy.vstack(cond_i_mats)
+    mat_cond_i = np.vstack(cond_i_mats)
     df_cond_i = pd.DataFrame(mat_cond_i,index=multi_index)
 
     spike_prob = np.zeros((nGrC,ncol))

@@ -37,8 +37,8 @@ def main():
 ###########################################################
 def run_analysis():
     # Load arrays listing all active MF->GrC pairs
-    control_connections = np.load('controlConnections.npy')
-    ach_connections     = np.load('achConnections.npy')
+    control_connections = np.load('controlConnections.npy', allow_pickle=True)
+    ach_connections     = np.load('achConnections.npy', allow_pickle=True)
     # Check to make sure connections are the same for both conditions
     shared_connections = control_connections == ach_connections
     if np.all(shared_connections):
@@ -51,9 +51,9 @@ def run_analysis():
     unique,counts = np.unique(GrC,return_counts=True)
 
     # Load spike probability arrays
-    control_all = np.load('randomized_controlSpikeProb.npy')
-    gaba_all    = np.load('randomized_gabaSpikeProb.npy')
-    ach_all     = np.load('randomized_achSpikeProb.npy')
+    control_all = np.load('randomized_controlSpikeProb.npy', allow_pickle=True)
+    gaba_all    = np.load('randomized_gabaSpikeProb.npy', allow_pickle=True)
+    ach_all     = np.load('randomized_achSpikeProb.npy', allow_pickle=True)
 
     nt = control_all.shape[1]
 
@@ -97,8 +97,8 @@ def run_analysis():
 
 
     # Load synaptic weight dictionaries
-    control_weights     = np.load('controlWeights.npy')
-    ach_weights         = np.load('achWeights.npy')
+    control_weights     = np.load('controlWeights.npy', allow_pickle=True)
+    ach_weights         = np.load('achWeights.npy', allow_pickle=True)
     x = control_weights.item()
     y = ach_weights.item()
 
@@ -110,8 +110,8 @@ def run_analysis():
         weights = x
 
     # Load excitatory and inhibitory conductance traces
-    g_e = np.load('controlCondE.npy')
-    g_i = np.load('controlCondI.npy')
+    g_e = np.load('controlCondE.npy', allow_pickle=True)
+    g_i = np.load('controlCondI.npy', allow_pickle=True)
     if g_e.shape[1] != nt:
         print('WARNING: StateMonitor sampling does not match resolution of spiking data')
     else:
@@ -137,7 +137,7 @@ def run_analysis():
     int_g_i = np.trapz(g_i,xval,axis=1)
 
     # Load array with the fraction of tonic inhibition in muscarine
-    reduce_tonic = np.load('tonicReduction.npy')
+    reduce_tonic = np.load('tonicReduction.npy', allow_pickle=True)
     if len(reduce_tonic) != control_unique.shape[0]:
         print('WARNING: Did not save tonic reduction for only unique GrCs')
     else:
@@ -425,28 +425,28 @@ def plot_inputs_summary(int_g_e, int_g_i, max_ach, reduce_tonic):
         # ax[0,0].scatter([1,2],[mean_dec_e,mean_inc_e],c='k')
         ax[0,0].errorbar([1,2],[mean_dec_e,mean_inc_e],[sem_dec_e,sem_inc_e],fmt='ok',ecolor='k')
         ax[0,0].set_xticks(np.arange(0,3,1))
-        ax[0,0].set_xticklabels(['','Decreasing','Increasing',''])
+        ax[0,0].set_xticklabels(['','Decreasing','Increasing'])
         ax[0,0].set_ylabel('ge (nS)')
         ax[0,0].set_xlim(0,3)
 
         # ax[0,1].scatter([1,2],[mean_dec_i,mean_inc_i],c='k')
         ax[0,1].errorbar([1,2],[mean_dec_i,mean_inc_i],[sem_dec_i,sem_inc_i],fmt='ok',ecolor='k')
         ax[0,1].set_xticks(np.arange(0,3,1))
-        ax[0,1].set_xticklabels(['','Decreasing','Increasing',''])
+        ax[0,1].set_xticklabels(['','Decreasing','Increasing'])
         ax[0,1].set_ylabel('gi (nS)')
         ax[0,1].set_xlim(0,3)
 
         # ax[1,0].scatter([1,2],[mean_dec_net,mean_inc_net],c='k')
         ax[1,0].errorbar([1,2],[mean_dec_net,mean_inc_net],[sem_dec_net,sem_inc_net],fmt='ok',ecolor='k')
         ax[1,0].set_xticks(np.arange(0,3,1))
-        ax[1,0].set_xticklabels(['','Decreasing','Increasing',''])
+        ax[1,0].set_xticklabels(['','Decreasing','Increasing'])
         ax[1,0].set_ylabel('gnet (nS)')
         ax[1,0].set_xlim(0,3)
 
         # ax[1,1].scatter([1,2],[mean_dec_reduce,mean_inc_reduce],c='k')
         ax[1,1].errorbar([1,2],[mean_dec_reduce,mean_inc_reduce],[sem_dec_reduce,sem_inc_reduce],fmt='ok',ecolor='k')
         ax[1,1].set_xticks(np.arange(0,3,1))
-        ax[1,1].set_xticklabels(['','Decreasing','Increasing',''])
+        ax[1,1].set_xticklabels(['','Decreasing','Increasing'])
         ax[1,1].set_ylabel('gt reduction')
         ax[1,1].set_xlim(0,3)
         ax[1,1].set_ylim(0,1)
@@ -475,7 +475,7 @@ def shiftedColorMap(cmap,start=0,midpoint=0.5,stop=1.0, name='shiftedcmap'):
         cdict['alpha'].append((si,a,a))
 
     newcmap = matplotlib.colors.LinearSegmentedColormap(name,cdict)
-    plt.register_cmap(cmap=newcmap)
+    plt.colormaps.register(newcmap)
 
     return newcmap
 
