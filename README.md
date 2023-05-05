@@ -1,6 +1,7 @@
 # ChAT Model
 
-[![Build](https://github.com/trfore/chatmodel/actions/workflows/build.yml/badge.svg)](https://github.com/trfore/chatmodel/actions/workflows/build.yml)
+[![Linux](https://github.com/trfore/chatmodel/actions/workflows/build-linux64.yml/badge.svg)](https://github.com/trfore/chatmodel/actions/workflows/build-linux64.yml)
+[![MacOS & Win x64](https://github.com/trfore/chatmodel/actions/workflows/build-osx64-win64.yml/badge.svg)](https://github.com/trfore/chatmodel/actions/workflows/build-osx64-win64.yml)
 
 ## Introduction
 
