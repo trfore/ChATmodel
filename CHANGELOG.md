@@ -2,22 +2,20 @@
 
 ## [v1.1.0](https://github.com/trfore/chatmodel/releases/tag/v1.1.0) (2023-05-04)
 
-### Notes:
-
 ### Updates:
 
-- feature: accept env vars as input resolves #2 ([3368369](https://github.com/chatmodel/commit/3368369d70f93c12810bab43fce5c82d8b60d0d0))
+- feature: accept env vars as input resolves #2 ([3368369](https://github.com/trfore/chatmodel/commit/3368369d70f93c12810bab43fce5c82d8b60d0d0))
 
 ### Fixes:
 
-- fix: bug in figures.py x-axis value error #6 ([32a7b91](/commit/32a7b9181643e88efc3cf980047b9e7f49736f37))
-- fix: resolves #5 ([d1ebfa0](https://github.com/chatmodel/commit/d1ebfa0ba3f70feef19abbdb4400dbeec8facff9))
-- fix: resolves #4 ([5eac384](https://github.com/chatmodel/commit/5eac384559b09b9511c947c9449a4197ee25e79b))
-- fix: deprecated functions in run_simulation.py #3 ([cf669df](https://github.com/chatmodel/commit/cf669df29c6da8d1af0bbc00ba79bdcb500d9c57))
+- fix: bug in figures.py x-axis value error #6 ([32a7b91](https://github.com/trfore/chatmodel/commit/32a7b9181643e88efc3cf980047b9e7f49736f37))
+- fix: resolves #5 ([d1ebfa0](https://github.com/trfore/chatmodel/commit/d1ebfa0ba3f70feef19abbdb4400dbeec8facff9))
+- fix: resolves #4 ([5eac384](https://github.com/trfore/chatmodel/commit/5eac384559b09b9511c947c9449a4197ee25e79b))
+- fix: deprecated functions in run_simulation.py #3 ([cf669df](https://github.com/trfore/chatmodel/commit/cf669df29c6da8d1af0bbc00ba79bdcb500d9c57))
 
 ### Chores:
 
-- chore: update dependencies, numpy>=1.19 ([f32d146](https://github.com/chatmodel/commit/f32d1463328b2c95e9fcc3d5d8bbfbe84d306261))
+- chore: update dependencies, numpy>=1.19 ([f32d146](https://github.com/trfore/chatmodel/commit/f32d1463328b2c95e9fcc3d5d8bbfbe84d306261))
 
 ---
 

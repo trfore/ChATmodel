@@ -1,5 +1,7 @@
 # ChAT Model
 
+[![Build](https://github.com/trfore/chatmodel/actions/workflows/build.yml/badge.svg)](https://github.com/trfore/chatmodel/actions/workflows/build.yml)
+
 ## Introduction
 
 This is an implementation of the spiking cerebellar granular layer model described in:
@@ -42,7 +44,7 @@ $ cd chatmodel
 
 # Recommended, create 'brian2' environment
 $ conda install conda-lock
-$ conda-lock install --name brian2 conda-lock.yml
+$ conda-lock install --name brian2 lock_files/conda-lock.yml
 
 # create env using environment.yml
 $ conda create --name brian2 --file environment.yml
@@ -50,7 +52,7 @@ $ conda create --name brian2 --file environment.yml
 $ conda create --name brian2 --file requirements.txt
 ```
 
-We recommend using the `conda-lock.yml` file, as it will install validated package versions and for the following platforms.
+We recommend using the `conda-lock.yml` file, as it will install validated package versions tested against the following platforms.
 
 ### Tested Platforms & Simulation Run Times
 
@@ -62,7 +64,7 @@ We recommend using the `conda-lock.yml` file, as it will install validated packa
 
 - The full simulation takes ~ 42 minutes (2020 AMD 5600x, 32 GB) to 5 hours (2013 Intel I5-4258U, 8 GB) to run. This time is dependent on your system hardware.
 - Unconstrained, the model uses a maximum of `27 GB` of RAM and `2` physical cores, but will run on systems with less RAM as the simulation will write to `cache` and `swap` at the cost of a longer run time.
-- The output files, `*.npy`, are only approximately `XXX` in size, and available in the `simulation_output` folder (link: [chatmodel/simulation_output](https://www.github.com/trfore/chatmodel/simulation_output)).
+- The output files, `*.npy`, are collectively `328 MB` in size. An archive is available on the release page (link: [v1.1.0](https://github.com/trfore/chatmodel/releases/tag/v1.1.0)).
 
 ### Running the scripts
 
