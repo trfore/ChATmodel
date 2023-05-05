@@ -47,9 +47,9 @@ $ conda install conda-lock
 $ conda-lock install --name brian2 lock_files/conda-lock.yml
 
 # create env using environment.yml
-$ conda create --name brian2 --file environment.yml
+$ conda env create -f environment.yml
 # create env using requirements.txt
-$ conda create --name brian2 --file requirements.txt
+$ conda create --name brian2 --file requirements.txt --channel conda-forge
 ```
 
 We recommend using the `conda-lock.yml` file, as it will install validated package versions tested against the following platforms.
