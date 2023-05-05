@@ -13,3 +13,4 @@ dependencies:
 platforms:
   - osx-64
   - linux-64
+  - win-64
